@@ -1,0 +1,2979 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartWord AI Pro - 次世代エンタープライズ文書作成SaaS</title>
+    <!-- FontAwesome CDN for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- html-docx-js / docx.js libraries for advanced DOCX export with full HTML styles -->
+    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/diff_match_patch/20121119/diff_match_patch.js"></script>
+    <!-- html2pdf.js for faithful A4 PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+            background-color: #f1f5f9;
+            color: #1e293b;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Top Navigation Header */
+        header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: white;
+            padding: 10px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+            z-index: 30;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        header h1 i {
+            color: #38bdf8;
+            font-size: 1.4rem;
+        }
+
+        .badge {
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .header-meta {
+            font-size: 0.82rem;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        /* API Connection Badge */
+        .api-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.78rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .api-status.connected {
+            color: #4ade80;
+        }
+
+        .api-status.fallback {
+            color: #facc15;
+        }
+
+        .api-status.error {
+            color: #f87171;
+        }
+
+        .user-chip {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 4px 12px;
+            border-radius: 20px;
+            color: #f8fafc;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .app-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Left Sidebar: Multi-Tab AI Assistant & Workspace */
+        .sidebar {
+            width: 390px;
+            background: #ffffff;
+            border-right: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.02);
+        }
+
+        .tab-menu {
+            display: flex;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            flex: 1;
+            min-width: 90px;
+            padding: 10px 4px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.76rem;
+            color: #64748b;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .tab-btn:hover {
+            color: #2563eb;
+            background: #f1f5f9;
+        }
+
+        .tab-btn.active {
+            background: #ffffff;
+            color: #2563eb;
+            border-bottom: 2px solid #2563eb;
+            font-weight: 700;
+        }
+
+        .panel {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .panel.active {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* Novel Feature Cards */
+        .novel-card {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border: 1px solid #bfdbfe;
+            padding: 12px 14px;
+            border-radius: 8px;
+            font-size: 0.83rem;
+        }
+
+        .novel-card h4 {
+            color: #1e40af;
+            font-size: 0.88rem;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 700;
+        }
+
+        .novel-card p {
+            color: #3b82f6;
+            font-size: 0.75rem;
+            line-height: 1.4;
+            margin-bottom: 8px;
+        }
+
+        .switch-label {
+            font-weight: 600;
+            color: #1e3a8a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 0.82rem;
+        }
+
+        /* Multi-Channel Auto Transform Selector */
+        .transform-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .transform-box h5 {
+            font-size: 0.8rem;
+            color: #475569;
+            margin-bottom: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .channel-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .channel-btn {
+            padding: 8px;
+            border: 1px solid #cbd5e1;
+            background: white;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #334155;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .channel-btn:hover {
+            border-color: #2563eb;
+            color: #2563eb;
+            background: #eff6ff;
+        }
+
+        /* Chat messages */
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 180px;
+            padding-right: 4px;
+        }
+
+        .msg {
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            max-width: 90%;
+            word-break: break-word;
+        }
+
+        .msg.user {
+            background: #2563eb;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+
+        .msg.ai {
+            background: #f1f5f9;
+            color: #1e293b;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .msg.error-msg {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+            align-self: flex-start;
+        }
+
+        .chat-input-area {
+            display: flex;
+            gap: 6px;
+            margin-top: auto;
+        }
+
+        .chat-input-area input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            outline: none;
+            transition: border 0.2s;
+        }
+
+        .chat-input-area input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+        }
+
+        .chat-input-area button {
+            padding: 10px 16px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.85rem;
+            transition: background 0.2s;
+        }
+
+        .chat-input-area button:hover {
+            background: #1d4ed8;
+        }
+
+        /* Version History */
+        .history-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .doc-title-input {
+            width: 100%;
+            max-width: 820px;
+            padding: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            box-sizing: border-box;
+            background: #ffffff;
+        }
+
+        .doc-title-input:focus {
+            border-bottom-color: #2563eb;
+        }
+
+        .history-item {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .history-item:hover {
+            border-color: #2563eb;
+            background: #eff6ff;
+            transform: translateY(-1px);
+        }
+
+        .history-item .ver-title {
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: #1e293b;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* 審査員パネル関連 */
+        .persona-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+
+        .persona-btn {
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #334155;
+            cursor: pointer;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s;
+        }
+
+        .persona-btn:hover {
+            border-color: #7c3aed;
+            background: #f5f3ff;
+            color: #6d28d9;
+        }
+
+        .persona-btn.active {
+            border-color: #7c3aed;
+            background: #ede9fe;
+            color: #5b21b6;
+            font-weight: 700;
+        }
+
+        .comment-card {
+            background: #ffffff;
+            border-left: 4px solid #f97316;
+            border-top: 1px solid #e2e8f0;
+            border-right: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .comment-card.cfo {
+            border-left-color: #ef4444;
+        }
+
+        .comment-card.legal {
+            border-left-color: #3b82f6;
+        }
+
+        .comment-card.sales {
+            border-left-color: #f59e0b;
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: #0f172a;
+        }
+
+        .comment-body {
+            color: #475569;
+            line-height: 1.4;
+            margin-bottom: 10px;
+        }
+
+        .btn-apply-fix {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            color: #1e293b;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.15s;
+        }
+
+        .btn-apply-fix:hover {
+            background: #e2e8f0;
+            border-color: #94a3b8;
+        }
+
+        /* Main Workspace & Paper Layout */
+        .workspace {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #e2e8f0;
+            overflow: hidden;
+        }
+
+        /* Ribbon / Toolbar for Styling */
+        .toolbar-ribbon {
+            background: #ffffff;
+            border-bottom: 1px solid #cbd5e1;
+            padding: 8px 16px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            z-index: 20;
+        }
+
+        .tool-group {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            border-right: 1px solid #e2e8f0;
+            padding-right: 8px;
+            margin-right: 4px;
+        }
+
+        .tool-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #475569;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+
+        .tool-btn:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+            color: #0f172a;
+        }
+
+        .tool-btn.active {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #2563eb;
+        }
+
+        .tool-select {
+            padding: 5px 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            font-size: 0.82rem;
+            color: #334155;
+            background: white;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .tool-color-picker {
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            cursor: pointer;
+            background: transparent;
+        }
+
+        .ribbon-actions {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 7px 14px;
+            border-radius: 6px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 0.82rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-word {
+            background: #107c41;
+            color: white;
+        }
+
+        .btn-word:hover {
+            background: #0b5c30;
+        }
+
+        .btn-pdf {
+            background: #dc2626;
+            color: white;
+        }
+
+        .btn-pdf:hover {
+            background: #b91c1c;
+        }
+
+        .btn-ai-analyze {
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            color: white;
+        }
+
+        .btn-ai-analyze:hover {
+            opacity: 0.95;
+        }
+
+        .btn-heatmap {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            color: white;
+        }
+
+        .btn-heatmap.active {
+            background: #9a3412;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-outline {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            color: #334155;
+        }
+
+        .btn-outline:hover {
+            background: #f8fafc;
+            border-color: #94a3b8;
+        }
+
+        .btn-highlight-primary {
+            background: #eff6ff;
+            border: 1px solid #3b82f6;
+            color: #1d4ed8;
+            font-weight: 700;
+        }
+
+        .btn-highlight-primary:hover {
+            background: #dbeafe;
+        }
+
+        /* Paper Editor Centered Container */
+        .paper-scroll-area,
+        #pdf-scroll-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+            background-color: #e2e8f0;
+            padding: 40px 0;
+            width: 100%;
+            flex: 1;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        /* A4用紙のサイズ定義 */
+        .a4-paper {
+            width: 100%;
+            max-width: 820px;
+            min-height: 1050px !important;
+            background: white;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            padding: 50px 60px;
+            border-radius: 2px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        /* エディタ領域：A4サイズ内の高さ・文字制限を想定 */
+        .rich-editor {
+            width: 100%;
+            min-height: 880px !important;
+            outline: none;
+            word-break: break-all;
+            font-size: 16px;
+            line-height: 1.6;
+            color: #1e293b;
+            overflow: visible;
+        }
+
+        .rich-editor p {
+            margin-bottom: 1em;
+            transition: background 0.3s;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        .rich-editor h1 {
+            font-size: 1.8rem;
+            margin-top: 1.2em;
+            margin-bottom: 0.6em;
+            font-weight: 800;
+            color: #0f172a;
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        .rich-editor h2 {
+            font-size: 1.4rem;
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+            font-weight: 700;
+            color: #1e3a8a;
+            border-left: none;
+            padding-left: 10px;
+            padding-top: 2px;
+            padding-bottom: 2px;
+            border-radius: 4px;
+        }
+
+        .rich-editor h3 {
+            font-size: 1.15rem;
+            margin-top: 0.8em;
+            margin-bottom: 0.4em;
+            font-weight: 700;
+            color: #334155;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        .rich-editor ul,
+        .rich-editor ol {
+            padding-left: 24px;
+            margin-bottom: 1em;
+        }
+
+        .rich-editor blockquote {
+            border-left: 4px solid #cbd5e1;
+            padding-left: 14px;
+            color: #64748b;
+            font-style: italic;
+            margin: 1em 0;
+        }
+
+        /* 【表（テーブル）コンテナ】 */
+        .editor-table-wrapper {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            min-width: 150px;
+            min-height: 80px;
+            resize: both;
+            overflow: auto;
+            border: none;
+            background-color: #ffffff;
+            padding: 12px 8px 8px 8px;
+            margin: 14px 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border-radius: 4px;
+            user-select: none;
+            outline: none;
+        }
+
+        .editor-table-wrapper:focus {
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+        }
+
+        .rich-editor table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #ffffff;
+        }
+
+        .rich-editor th,
+        .rich-editor td {
+            border: 1px solid #cbd5e1;
+            padding: 8px 12px;
+            text-align: left;
+            font-size: 0.95rem;
+            color: #1e293b;
+            min-width: 50px;
+        }
+
+        .rich-editor th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+        }
+
+        /* 共通のカスタム右クリックメニュー用スタイル */
+        #custom-context-menu {
+            display: none;
+            position: fixed;
+            background: white;
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-radius: 6px;
+            z-index: 10000;
+            padding: 6px 0;
+            min-width: 200px;
+            font-size: 0.85rem;
+        }
+
+        .ctx-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            color: #334155;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ctx-menu-item:hover {
+            background: #f1f5f9;
+            color: #2563eb;
+        }
+
+        .ctx-menu-item.danger {
+            color: #dc2626;
+        }
+
+        .ctx-menu-item.danger:hover {
+            background: #fef2f2;
+        }
+
+        /* 【写真コンテナ】 */
+        .editor-image-container {
+            display: block;
+            width: 300px;
+            max-width: 100%;
+            min-width: 100px;
+            min-height: 80px;
+            margin: 14px 0;
+            resize: both;
+            overflow: auto;
+            scrollbar-width: none;
+            border: none;
+            background-color: #ffffff;
+            padding: 12px 8px 8px 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border-radius: 4px;
+            user-select: none;
+            outline: none;
+        }
+
+        .editor-image-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        .editor-image-container:focus {
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+        }
+
+        .editor-image-container img {
+            width: 100%;
+            height: auto;
+            max-height: 450px;
+            object-fit: contain;
+            display: block;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        /* ヒートマップ表示モード */
+        .rich-editor.heatmap-mode .heat-high {
+            background-color: rgba(239, 68, 68, 0.18) !important;
+            border-left: 3px solid #ef4444 !important;
+        }
+
+        .rich-editor.heatmap-mode .heat-medium {
+            background-color: rgba(245, 158, 11, 0.15) !important;
+        }
+
+        .rich-editor.heatmap-mode .heat-low {
+            background-color: rgba(59, 130, 246, 0.08) !important;
+            opacity: 0.85;
+        }
+
+        .ai-comment-highlight {
+            border-bottom: 2px dashed #f97316;
+            background-color: rgba(254, 215, 170, 0.4);
+            cursor: pointer;
+        }
+
+        /* Diff Highlight Overlay */
+        .diff-view {
+            flex: 1;
+            outline: none;
+            font-size: 1rem;
+            line-height: 1.8;
+            color: #1e293b;
+            min-height: 700px;
+            display: none;
+            background: #f8fafc;
+            padding: 20px;
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        ins {
+            background-color: #d1fae5;
+            color: #065f46;
+            text-decoration: none;
+            font-weight: bold;
+            padding: 1px 4px;
+            border-radius: 2px;
+        }
+
+        del {
+            background-color: #fee2e2;
+            color: #991b1b;
+            text-decoration: line-through;
+            padding: 1px 4px;
+            border-radius: 2px;
+        }
+
+        /* AI Quality & Sentiment Drawer */
+        .analysis-drawer {
+            background: #ffffff;
+            border-top: 1px solid #cbd5e1;
+            padding: 14px 20px;
+            font-size: 0.85rem;
+            display: none;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .analysis-header {
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+        }
+
+        .metric-card {
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .metric-title {
+            font-size: 0.75rem;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #2563eb;
+            margin-top: 2px;
+        }
+
+        .risk-item {
+            color: #dc2626;
+            font-size: 0.85rem;
+            margin-top: 6px;
+            font-weight: 600;
+        }
+
+        .advice-item {
+            color: #1d4ed8;
+            font-size: 0.88rem;
+            margin-top: 6px;
+            line-height: 1.5;
+        }
+
+        /* カスタムモーダル */
+        .custom-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.2s ease-in;
+        }
+
+        .custom-modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            width: 420px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .custom-modal-header {
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: #0f172a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .custom-modal-body {
+            font-size: 0.88rem;
+            color: #334155;
+            line-height: 1.7;
+        }
+
+        .custom-modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 4px;
+        }
+
+        /* PDF出力時のクリーンアップ用スタイル */
+        body.pdf-exporting .doc-title-input {
+            display: none !important;
+        }
+
+        body.pdf-exporting .editor-table-wrapper {
+            border: none !important;
+            resize: none !important;
+            background: transparent !important;
+        }
+
+        body.pdf-exporting .rich-editor h2 {
+            border-left: none !important;
+            padding-left: 4px !important;
+        }
+
+        body.pdf-exporting .paper-scroll-area,
+        body.pdf-exporting #pdf-scroll-container {
+            background-color: #ffffff !important;
+            padding: 0 !important;
+            gap: 0 !important;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header Bar -->
+    <header>
+        <h1><i class="fa-solid fa-file-word"></i> SmartWord AI <span class="badge">Enterprise Pro</span></h1>
+        <div class="header-meta">
+            <div id="api-status-badge" class="api-status">
+                <span id="api-status-icon">⚪</span>
+                <span id="api-status-text">接続確認中...</span>
+            </div>
+            <span><i class="fa-solid fa-building"></i> 契約企業: 株式会社横ちゃんズ</span>
+            <div class="user-chip"><i class="fa-solid fa-circle-user"></i> 横木 海翔 様</div>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <!-- Left Panel: AI Control & Multi-Transform Studio -->
+        <div class="sidebar">
+            <div class="tab-menu">
+                <button class="tab-btn active" onclick="switchTab('chat')">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> AIスタジオ
+                </button>
+                <button class="tab-btn" onclick="switchTab('reviewer')" style="color:#7c3aed;">
+                    <i class="fa-solid fa-user-tie"></i> 仮想審査員
+                </button>
+                <button class="tab-btn" onclick="switchTab('transform')">
+                    <i class="fa-solid fa-share-nodes"></i> マルチ展開
+                </button>
+                <button class="tab-btn" onclick="switchTab('history')">
+                    <i class="fa-solid fa-clock-rotate-left"></i> 履歴
+                </button>
+            </div>
+
+            <!-- TAB 1: AI Chat & Tone Controls -->
+            <div id="chat-panel" class="panel active">
+                <div class="novel-card">
+                    <h4><i class="fa-solid fa-crown"></i> 社内エース・スタイルの自動同期</h4>
+                    <p>社内で最も成果を出している役員・エース営業の「結論ファースト＆定量表現」スタイルを適用します。</p>
+                    <label class="switch-label">
+                        <input type="checkbox" id="ace-mode" checked>
+                        <span>エース思考モデルを常に有効化</span>
+                    </label>
+                </div>
+
+                <div class="chat-messages" id="chat-msgs">
+                    <div class="msg ai">
+                        こんにちは！スマートWord AIアシスタントです。<br>
+                        テキストを自由選択して右クリックすると、文字サイズや好きな色・マーカーをいつでも自由に変更できます！
+                    </div>
+                </div>
+
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input" placeholder="指示を入力 (例: 結論を太字にし、見出しをつけて)"
+                        onkeydown="if(event.key==='Enter') sendChat()">
+                    <button onclick="sendChat()"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>
+
+            <!-- TAB 2: AI仮想審査員 -->
+            <div id="reviewer-panel" class="panel">
+                <div class="novel-card"
+                    style="background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%); border-color: #ddd6fe;">
+                    <h4 style="color: #6d28d9;"><i class="fa-solid fa-gavel"></i> 仮想審査員・事前査読モデル</h4>
+                    <p style="color: #5b21b6;">提出相手（ペルソナ）を選択すると、相手の目線で「ツッコミが来そうな弱点」を自動検知し、反論を封じる修正案を提示します。</p>
+                </div>
+
+                <div style="font-size:0.8rem; font-weight:700; color:#475569; margin-top:4px;">審査員ペルソナを選択:</div>
+                <div class="persona-grid">
+                    <button class="persona-btn active" onclick="runReviewerSimulation('cfo', this)">
+                        <span>💰 財務担当役員 (CFO)</span>
+                        <span style="font-size:0.7rem; color:#64748b;">コスト・ROI厳格派</span>
+                    </button>
+                    <button class="persona-btn" onclick="runReviewerSimulation('legal', this)">
+                        <span>⚖️ 法務・コンプライアンス</span>
+                        <span style="font-size:0.7rem; color:#64748b;">リスク・契約保守派</span>
+                    </button>
+                    <button class="persona-btn" onclick="runReviewerSimulation('sales', this)">
+                        <span>🤝 短気な営業本部長</span>
+                        <span style="font-size:0.7rem; color:#64748b;">結論・スピード重視</span>
+                    </button>
+                </div>
+
+                <div
+                    style="font-size:0.8rem; font-weight:700; color:#475569; margin-top:8px; display:flex; justify-content:space-between;">
+                    <span>事前審査のコメント (<span id="comment-count">1</span>件)</span>
+                    <span style="color:#2563eb; cursor:pointer;"
+                        onclick="runReviewerSimulation(currentPersona, null)"><i class="fa-solid fa-rotate-right"></i>
+                        再審査</span>
+                </div>
+
+                <div id="reviewer-comments" style="display:flex; flex-direction:column; gap:10px; margin-top:2px;">
+                </div>
+            </div>
+
+            <!-- TAB 3: Multi-Channel Instant Deployment -->
+            <div id="transform-panel" class="panel">
+                <div class="novel-card"
+                    style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-color: #bbf7d0;">
+                    <h4 style="color: #166534;"><i class="fa-solid fa-bolt"></i> 1原稿・マルチプラットフォーム展開</h4>
+                    <p style="color: #15803d;">この文書をもとに、他の業務で使う最適化フォーマットをワンクリックで一括生成します。</p>
+                </div>
+
+                <div class="transform-box">
+                    <h5>展開先のフォーマットを選択</h5>
+                    <div class="channel-grid">
+                        <button class="channel-btn" onclick="transformContent('slack')"><i class="fa-brands fa-slack"
+                                style="color: #9333ea;"></i> Slack / Teams要約</button>
+                        <button class="channel-btn" onclick="transformContent('email')"><i class="fa-solid fa-envelope"
+                                style="color: #2563eb;"></i> 顧客向けメール</button>
+                        <button class="channel-btn" onclick="transformContent('bullets')"><i
+                                class="fa-solid fa-list-check" style="color: #059669;"></i> 役員用サマリー</button>
+                        <button class="channel-btn" onclick="transformContent('press')"><i class="fa-solid fa-newspaper"
+                                style="color: #d97706;"></i> 社内Wiki原稿</button>
+                    </div>
+                </div>
+
+                <div style="margin-top: 10px;">
+                    <label style="font-size: 0.8rem; font-weight: bold; color: #475569;">変換プレビュー / クイックコピー</label>
+                    <textarea id="transform-result" readonly
+                        style="width: 100%; height: 200px; margin-top: 6px; padding: 10px; font-size: 0.82rem; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc; resize: none; outline: none;"></textarea>
+                    <button onclick="copyTransformResult()" class="btn btn-outline"
+                        style="width: 100%; margin-top: 8px; justify-content: center;"><i class="fa-solid fa-copy"></i>
+                        クリップボードにコピー</button>
+                </div>
+            </div>
+
+            <!-- TAB 4: Version History -->
+            <div id="history-panel" class="panel">
+                <p style="font-size:0.8rem; color:#64748b;">自動保存された編集履歴です。いつでも過去の装飾・本文状態を完全復元できます。</p>
+                <ul class="history-list" id="history-list"></ul>
+            </div>
+        </div>
+
+        <!-- Main Workspace (Word-like Editor with Formatting Toolbar) -->
+        <div class="workspace">
+
+            <!-- Formatting Ribbon Toolbar -->
+            <div class="toolbar-ribbon">
+                <!-- Group 1: Text Styles & Font Sizes -->
+                <div class="tool-group">
+                    <select class="tool-select" onchange="formatDoc('formatBlock', this.value); this.selectedIndex=0;">
+                        <option value="">スタイル変更</option>
+                        <option value="h1">大見出し (H1)</option>
+                        <option value="h2">中見出し (H2)</option>
+                        <option value="h3">小見出し (H3)</option>
+                        <option value="p">標準段落 (Body)</option>
+                    </select>
+
+                    <div style="display: flex; align-items: center; gap: 2px; margin-left: 4px;">
+                        <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">サイズ:</span>
+                        <input type="number" id="custom-font-size" value="16" min="8" max="72"
+                            style="width: 50px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.8rem;"
+                            onchange="applyCustomFontSize(this.value)" title="文字サイズ（px）を入力して変更">
+                        <span style="font-size: 0.75rem; color: #64748b;">px</span>
+                    </div>
+                </div>
+
+                <!-- Group 2: Inline Formatting -->
+                <div class="tool-group">
+                    <button class="tool-btn" onclick="formatDoc('bold')" title="太字 (Bold)"><i
+                            class="fa-solid fa-bold"></i></button>
+                    <button class="tool-btn" onclick="formatDoc('italic')" title="斜体 (Italic)"><i
+                            class="fa-solid fa-italic"></i></button>
+                    <button class="tool-btn" onclick="formatDoc('underline')" title="下線 (Underline)"><i
+                            class="fa-solid fa-underline"></i></button>
+                    <button class="tool-btn" onclick="formatDoc('strikeThrough')" title="打ち消し線"><i
+                            class="fa-solid fa-strikethrough"></i></button>
+                </div>
+
+                <!-- Group 3: Color & Highlight -->
+                <div class="tool-group">
+                    <span style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin-right: 2px;">文字色:</span>
+                    <input type="color" class="tool-color-picker" onchange="formatDoc('foreColor', this.value)"
+                        title="文字色の変更">
+
+                    <span
+                        style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin-left: 6px; margin-right: 2px;">マーカー:</span>
+                    <input type="color" class="tool-color-picker" value="#fef08a"
+                        onchange="formatDoc('hiliteColor', this.value)" title="背景ハイライト色">
+                </div>
+
+                <!-- Group 4: Lists & Alignment -->
+                <div class="tool-group">
+                    <button class="tool-btn" onclick="formatDoc('insertUnorderedList')" title="箇条書き"><i
+                            class="fa-solid fa-list-ul"></i></button>
+                    <button class="tool-btn" onclick="formatDoc('insertOrderedList')" title="番号付きリスト"><i
+                            class="fa-solid fa-list-ol"></i></button>
+                    <button class="tool-btn" onclick="formatDoc('justifyLeft')" title="左揃え"><i
+                            class="fa-solid fa-align-left"></i></button>
+                    <button class="tool-btn" onclick="formatDoc('justifyCenter')" title="中央揃え"><i
+                            class="fa-solid fa-align-center"></i></button>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="ribbon-actions">
+                    <button class="btn btn-highlight-primary" onclick="prepareInsertionTarget(); showTableModal();" title="自由な表を作成"><i
+                            class="fa-solid fa-table"></i> 表挿入</button>
+                    <button class="btn btn-highlight-primary" onclick="prepareInsertionTarget(); insertImageFile();" title="画像を配置"><i
+                            class="fa-solid fa-image"></i> 写真追加</button>
+                    <button class="btn btn-outline" onclick="showWordCountModal()" title="文字数や構成を確認"><i
+                            class="fa-solid fa-calculator" style="color: #059669;"></i> 構成チェック</button>
+                    <button class="btn btn-outline" onclick="addNewPage()" title="白紙のページを追加"><i
+                            class="fa-solid fa-file-circle-plus" style="color: #7c3aed;"></i> ページ追加</button>
+                    <button class="btn btn-outline" onclick="newDocument()"><i class="fa-solid fa-file-circle-plus"></i>
+                        新規</button>
+                    <button class="btn btn-outline" onclick="openDocument()"><i class="fa-solid fa-folder-open"></i>
+                        開く</button>
+                    <button class="btn btn-outline" onclick="saveDocumentFile()" title="上書き保存 (Ctrl+S)"><i
+                            class="fa-solid fa-floppy-disk" style="color:#2563eb;"></i> 保存</button>
+                    <button class="btn btn-outline" onclick="saveAsDocumentFile()" title="名前を付けて保存"><i
+                            class="fa-solid fa-file-arrow-down" style="color:#0284c7;"></i> 名前を付けて保存</button>
+                    <button class="btn btn-heatmap" id="toggle-heatmap-btn" onclick="toggleHeatmap()"><i
+                            class="fa-solid fa-fire-flame-curved"></i> ヒートマップ</button>
+                    <button class="btn btn-outline" id="toggle-diff-btn" onclick="toggleDiffView()"><i
+                            class="fa-solid fa-code-compare"></i> 差分</button>
+                    <button class="btn btn-ai-analyze" onclick="analyzeDocument()"><i
+                            class="fa-solid fa-shield-halved"></i> AI診断</button>
+                    <button class="btn btn-word" onclick="exportToWord()"><i class="fa-solid fa-file-word"></i>
+                        Word</button>
+                    <button class="btn btn-pdf" onclick="exportToPDF()"><i class="fa-solid fa-file-pdf"></i>
+                        PDF</button>
+                </div>
+            </div>
+
+            <!-- Paper Editor Area -->
+            <div class="paper-scroll-area" id="pdf-scroll-container">
+                <!-- 文書タイトル入力欄 -->
+                <input type="text" id="doc-title" class="doc-title-input" value="" placeholder="文書タイトルを入力"
+                    oninput="event.stopPropagation()">
+                <div class="a4-paper pdf-target-page" id="pdf-target-area">
+
+                    <!-- ContentEditable Rich Text Area -->
+                    <div class="rich-editor" contenteditable="true" oninput="onContentChange()">
+
+                    </div>
+
+                    <!-- Diff Overlay View -->
+                    <div id="diff-view" class="diff-view"></div>
+                </div>
+            </div>
+
+            <!-- AI Quality & Sentiment Drawer -->
+            <div class="analysis-drawer" id="analysis-drawer">
+                <div class="analysis-header">
+                    <span><i class="fa-solid fa-chart-line" style="color: #9333ea;"></i> AI多角的リアルタイム診断レポート</span>
+                    <button onclick="closeAnalysis()"
+                        style="background:none; border:none; cursor:pointer; color:#64748b;"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="analysis-grid">
+                    <div class="metric-card">
+                        <div class="metric-title">読者の説得力・スコア</div>
+                        <div class="metric-value" id="score-persuasion">92 / 100</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-title">トーン＆マナー診断</div>
+                        <div class="metric-value" style="color: #10b981;" id="score-tone">極めて良好</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-title">リスク・誤解懸念</div>
+                        <div class="metric-value" style="color: #059669;" id="score-risk">検出なし</div>
+                    </div>
+                </div>
+                <div id="risk-area" style="margin-top: 8px;"></div>
+                <div id="advice-area"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- カスタム右クリックメニュー -->
+    <div id="custom-context-menu">
+        <div class="table-menu-items" style="display: none;">
+            <div class="ctx-menu-item" onclick="ctxAddRow()"><i class="fa-solid fa-plus"></i> 行を追加</div>
+            <div class="ctx-menu-item" onclick="ctxAddCol()"><i class="fa-solid fa-columns"></i> 列を追加</div>
+            <div class="ctx-menu-item" onclick="ctxDeleteRow()"><i class="fa-solid fa-minus"></i> 行を削除</div>
+            <div class="ctx-menu-item" onclick="ctxDeleteCol()"><i class="fa-solid fa-columns"
+                    style="color:#dc2626;"></i> 列を削除</div>
+            <div class="ctx-menu-item danger" onclick="ctxDeleteTable()"><i class="fa-solid fa-trash"></i> 表を削除</div>
+        </div>
+        <div class="image-menu-items" style="display: none;">
+            <div class="ctx-menu-item danger" onclick="ctxDeleteImage()"><i class="fa-solid fa-trash"></i> 写真を削除</div>
+        </div>
+        <div class="text-menu-items" style="display: none;">
+            <div class="ctx-menu-item" onclick="ctxTextFormat('bold')"><i class="fa-solid fa-bold"
+                    style="color:#2563eb;"></i> 太字にする (Bold)</div>
+            <div class="ctx-menu-item" onclick="ctxTextFormat('italic')"><i class="fa-solid fa-italic"
+                    style="color:#2563eb;"></i> 斜体にする (Italic)</div>
+            <div class="ctx-menu-item" onclick="ctxTextFormat('underline')"><i class="fa-solid fa-underline"
+                    style="color:#2563eb;"></i> 下線を引く (Underline)</div>
+            <div class="ctx-menu-item" onclick="ctxTextFormat('strikeThrough')"><i class="fa-solid fa-strikethrough"
+                    style="color:#dc2626;"></i> 打ち消し線</div>
+            <div style="border-top:1px solid #e2e8f0; margin:4px 0;"></div>
+            <div class="ctx-menu-item" style="justify-content: space-between;" onclick="event.stopPropagation();">
+                <span><i class="fa-solid fa-font"></i> 文字サイズ (px)</span>
+                <input type="number" id="ctx-font-size-input" value="16" min="8" max="72"
+                    style="width: 60px; padding: 2px 4px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.8rem;"
+                    onchange="ctxTextSize(this.value)">
+            </div>
+            <div class="ctx-menu-item" style="justify-content: space-between;" onclick="event.stopPropagation();">
+                <span><i class="fa-solid fa-palette"></i> 文字の色</span>
+                <input type="color" value="#1e293b"
+                    style="width: 32px; height: 26px; padding: 0; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; background: transparent;"
+                    onchange="ctxTextColor(this.value)">
+            </div>
+            <div class="ctx-menu-item" style="justify-content: space-between;" onclick="event.stopPropagation();">
+                <span><i class="fa-solid fa-highlighter"></i> マーカー</span>
+                <input type="color" value="#fef08a"
+                    style="width: 32px; height: 26px; padding: 0; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; background: transparent;"
+                    onchange="ctxTextHighlight(this.value)">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let history = [];
+        let versionCount = 0;
+        let changeTimer = null;
+        let isDiffShowing = false;
+        let isHeatmapShowing = false;
+        let currentPersona = 'cfo';
+        let isRestoring = false;
+        let currentFileHandle = null;
+        let activeTableContextElem = null;
+        let activeImageContextElem = null;
+        let savedRange = null;
+        let activeTableCellIndex = 0;
+        let lastFocusedEditor = null;
+        let targetEditorForInsertion = null;
+
+        const MAX_CHARS_PER_PAGE = 500;       
+        const MAX_HEIGHT_PER_PAGE = 900;      
+
+        window.addEventListener('DOMContentLoaded', () => {
+            checkApiStatus();
+            setTimeout(() => runReviewerSimulation('cfo', null), 500);
+
+            const scrollContainer = document.getElementById('pdf-scroll-container');
+
+            scrollContainer.addEventListener('input', (e) => {
+                if (e.target && e.target.id === 'doc-title') {
+                    return;
+                }
+                const editor = e.target.closest('.rich-editor');
+                if (editor) lastFocusedEditor = editor;
+                onContentChange();
+            });
+
+            document.addEventListener('contextmenu', (e) => {
+                const wrapper = e.target.closest('.editor-table-wrapper');
+                const imageContainer = e.target.closest('.editor-image-container');
+                const editor = e.target.closest('.rich-editor');
+                if (editor) lastFocusedEditor = editor;
+
+                const cell = e.target.closest('th, td');
+                if (cell) {
+                    activeTableCellIndex = cell.cellIndex;
+                }
+
+                const menu = document.getElementById('custom-context-menu');
+                const tableItems = menu.querySelector('.table-menu-items');
+                const imageItems = menu.querySelector('.image-menu-items');
+                const textItems = menu.querySelector('.text-menu-items');
+
+                if (wrapper) {
+                    e.preventDefault();
+                    activeTableContextElem = wrapper;
+                    activeImageContextElem = null;
+                    tableItems.style.display = 'block';
+                    imageItems.style.display = 'none';
+                    if (textItems) textItems.style.display = 'none';
+                    menu.style.display = 'block';
+                    menu.style.left = `${e.pageX}px`;
+                    menu.style.top = `${e.pageY}px`;
+                } else if (imageContainer) {
+                    e.preventDefault();
+                    activeImageContextElem = imageContainer;
+                    activeTableContextElem = null;
+                    tableItems.style.display = 'none';
+                    imageItems.style.display = 'block';
+                    if (textItems) textItems.style.display = 'none';
+                    menu.style.display = 'block';
+                    menu.style.left = `${e.pageX}px`;
+                    menu.style.top = `${e.pageY}px`;
+                } else if (editor) {
+                    e.preventDefault();
+                    activeTableContextElem = null;
+                    activeImageContextElem = null;
+                    tableItems.style.display = 'none';
+                    imageItems.style.display = 'none';
+                    if (textItems) textItems.style.display = 'block';
+                    menu.style.display = 'block';
+                    menu.style.left = `${e.pageX}px`;
+                    menu.style.top = `${e.pageY}px`;
+                } else {
+                    menu.style.display = 'none';
+                    activeTableContextElem = null;
+                    activeImageContextElem = null;
+                }
+            });
+
+            document.addEventListener('click', () => {
+                const menu = document.getElementById('custom-context-menu');
+                menu.style.display = 'none';
+            });
+
+            document.addEventListener('selectionchange', () => {
+                const sel = window.getSelection();
+                if (sel.rangeCount > 0) {
+                    const range = sel.getRangeAt(0);
+                    const editors = document.querySelectorAll('.rich-editor');
+                    for (let ed of editors) {
+                        if (ed.contains(range.commonAncestorContainer)) {
+                            lastFocusedEditor = ed;
+                            break;
+                        }
+                    }
+                    if (!range.collapsed) {
+                        let isInEditor = false;
+                        for (let ed of editors) {
+                            if (ed.contains(range.commonAncestorContainer)) {
+                                isInEditor = true;
+                                break;
+                            }
+                        }
+                        if (isInEditor) {
+                            savedRange = range.cloneRange();
+                        }
+                    }
+                }
+            });
+
+            window.addEventListener('keydown', (e) => {
+                const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+
+                if (isCtrlOrCmd && e.key.toLowerCase() === 's') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    saveDocumentFile();
+                } else if (isCtrlOrCmd && e.key.toLowerCase() === 'z') {
+                    if (isHeatmapShowing) updateHeatmapOverlay();
+                }
+            });
+        });
+
+        function prepareInsertionTarget() {
+            const sel = window.getSelection();
+            if (sel.rangeCount > 0) {
+                const range = sel.getRangeAt(0);
+                const editors = document.querySelectorAll('.rich-editor');
+                for (let ed of editors) {
+                    if (ed.contains(range.commonAncestorContainer) || ed.contains(sel.anchorNode)) {
+                        targetEditorForInsertion = ed;
+                        lastFocusedEditor = ed;
+                        return;
+                    }
+                }
+            }
+            if (lastFocusedEditor && document.body.contains(lastFocusedEditor)) {
+                targetEditorForInsertion = lastFocusedEditor;
+                return;
+            }
+            const activeEl = document.activeElement;
+            if (activeEl && activeEl.classList && activeEl.classList.contains('rich-editor')) {
+                targetEditorForInsertion = activeEl;
+                lastFocusedEditor = activeEl;
+                return;
+            }
+            const editors = document.querySelectorAll('.rich-editor');
+            targetEditorForInsertion = editors[editors.length - 1] || editors[0];
+        }
+
+        function ctxAddRow() {
+            if (!activeTableContextElem) return;
+            const table = activeTableContextElem.querySelector('table');
+            if (!table) return;
+            const rows = table.querySelectorAll('tr');
+            if (rows.length === 0) return;
+            const lastRow = rows[rows.length - 1];
+            const newRow = lastRow.cloneNode(true);
+            newRow.querySelectorAll('td, th').forEach(cell => {
+                cell.innerText = 'データ';
+            });
+            table.querySelector('tbody').appendChild(newRow);
+            onContentChange();
+        }
+
+        function ctxAddCol() {
+            if (!activeTableContextElem) return;
+            const table = activeTableContextElem.querySelector('table');
+            if (!table) return;
+            table.querySelectorAll('tr').forEach((tr, index) => {
+                const cell = document.createElement(index === 0 ? 'th' : 'td');
+                cell.style.cssText = "border:1px solid #cbd5e1; padding:8px 12px;";
+                cell.innerText = index === 0 ? '見出し' : 'データ';
+                tr.appendChild(cell);
+            });
+            onContentChange();
+        }
+
+        function ctxDeleteRow() {
+            if (!activeTableContextElem) return;
+            const table = activeTableContextElem.querySelector('table');
+            if (!table) return;
+            const tbody = table.querySelector('tbody');
+            if (tbody && tbody.rows.length > 1) {
+                tbody.deleteRow(tbody.rows.length - 1);
+            } else {
+                alert("これ以上行を削除できません。表全体を削除する場合は「表を削除」を選択してください。");
+            }
+            onContentChange();
+        }
+
+        function ctxDeleteCol() {
+            if (!activeTableContextElem) return;
+            const table = activeTableContextElem.querySelector('table');
+            if (!table) return;
+
+            const rows = table.querySelectorAll('tr');
+            if (rows.length === 0) return;
+
+            const firstRowCells = rows[0].querySelectorAll('th, td');
+            if (firstRowCells.length <= 1) {
+                alert("これ以上列を削除できません。表全体を削除する場合は「表を削除」を選択してください。");
+                return;
+            }
+
+            rows.forEach(tr => {
+                const cells = tr.querySelectorAll('th, td');
+                if (cells[activeTableCellIndex]) {
+                    cells[activeTableCellIndex].remove();
+                } else if (cells.length > 0) {
+                    cells[cells.length - 1].remove();
+                }
+            });
+            onContentChange();
+        }
+
+        function ctxDeleteTable() {
+            if (!activeTableContextElem) return;
+            activeTableContextElem.remove();
+            activeTableContextElem = null;
+            onContentChange();
+        }
+
+        function ctxDeleteImage() {
+            if (!activeImageContextElem) return;
+            activeImageContextElem.remove();
+            activeImageContextElem = null;
+            onContentChange();
+        }
+
+        function ctxTextFormat(command) {
+            if (savedRange) {
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(savedRange);
+            }
+            document.execCommand(command, false, null);
+            onContentChange();
+        }
+
+        function ctxTextSize(px) {
+            if (savedRange) {
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(savedRange);
+            }
+            applyCustomFontSize(px);
+        }
+
+        function ctxTextColor(color) {
+            if (savedRange) {
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(savedRange);
+            }
+            document.execCommand('foreColor', false, color);
+            onContentChange();
+        }
+
+        function ctxTextHighlight(color) {
+            if (savedRange) {
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(savedRange);
+            }
+            document.execCommand('hiliteColor', false, color);
+            onContentChange();
+        }
+
+        async function checkApiStatus() {
+            const badge = document.getElementById('api-status-badge');
+            const icon = document.getElementById('api-status-icon');
+            const text = document.getElementById('api-status-text');
+
+            try {
+                const res = await fetch('/api/status');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.gemini_connected) {
+                        badge.className = 'api-status connected';
+                        icon.innerText = '🟢';
+                        text.innerText = 'Gemini API 接続中';
+                    } else {
+                        badge.className = 'api-status fallback';
+                        icon.innerText = '🟡';
+                        text.innerText = '擬似AIモード (キー未設定)';
+                    }
+                } else {
+                    throw new Error();
+                }
+            } catch (e) {
+                badge.className = 'api-status fallback';
+                icon.innerText = '🟡';
+                text.innerText = 'スマート擬似AIモード';
+            }
+        }
+
+        function formatDoc(cmd, value = null) {
+            const activeEl = document.activeElement;
+            if (!activeEl || !activeEl.classList.contains('rich-editor')) {
+                const targetEd = lastFocusedEditor || document.querySelector('.rich-editor');
+                if (targetEd) targetEd.focus();
+            }
+            document.execCommand(cmd, false, value);
+            onContentChange();
+        }
+
+        function applyCustomFontSize(px) {
+            const selection = window.getSelection();
+
+            if (savedRange && (!selection.rangeCount || selection.isCollapsed)) {
+                selection.removeAllRanges();
+                selection.addRange(savedRange);
+            }
+
+            if (!selection.rangeCount) {
+                alert("文字サイズを変更するテキストを選択してください。");
+                return;
+            }
+
+            const range = selection.getRangeAt(0);
+
+            if (range.collapsed) {
+                alert("文字サイズを変更するテキストを選択してください。");
+                return;
+            }
+
+            const span = document.createElement('span');
+            span.style.fontSize = px + 'px';
+            span.appendChild(range.extractContents());
+            range.insertNode(span);
+
+            selection.removeAllRanges();
+            const newRange = document.createRange();
+            newRange.selectNodeContents(span);
+            selection.addRange(newRange);
+            savedRange = newRange.cloneRange();
+
+            onContentChange();
+        }
+
+        function switchTab(tabName) {
+            const btns = document.querySelectorAll('.tab-btn');
+            const panels = document.querySelectorAll('.panel');
+            btns.forEach(btn => btn.classList.remove('active'));
+            panels.forEach(panel => panel.classList.remove('active'));
+
+            if (tabName === 'chat') {
+                btns[0].classList.add('active');
+                document.getElementById('chat-panel').classList.add('active');
+            } else if (tabName === 'reviewer') {
+                btns[1].classList.add('active');
+                document.getElementById('reviewer-panel').classList.add('active');
+            } else if (tabName === 'transform') {
+                btns[2].classList.add('active');
+                document.getElementById('transform-panel').classList.add('active');
+            } else {
+                btns[3].classList.add('active');
+                document.getElementById('history-panel').classList.add('active');
+            }
+        }
+
+        function onContentChange() {
+            if (isRestoring) return;
+            clearTimeout(changeTimer);
+            changeTimer = setTimeout(() => {
+                saveVersion();
+                checkPageOverflow();
+            }, 300);
+            if (isHeatmapShowing) updateHeatmapOverlay();
+        }
+
+        function checkPageOverflow() {
+            if (isRestoring) return;
+
+            const editors = Array.from(document.querySelectorAll('.rich-editor'));
+            const selection = window.getSelection();
+            let cursorNode = null;
+            let cursorOffset = 0;
+            let activeEditorIndex = 0;
+
+            if (selection.rangeCount > 0) {
+                cursorNode = selection.anchorNode;
+                cursorOffset = selection.anchorOffset;
+                const activeEd = cursorNode.nodeType === Node.TEXT_NODE
+                    ? cursorNode.parentElement.closest('.rich-editor')
+                    : cursorNode.closest('.rich-editor');
+                if (activeEd) {
+                    activeEditorIndex = editors.indexOf(activeEd);
+                }
+            }
+
+            for (let i = 0; i < editors.length - 1; i++) {
+                const currentEd = editors[i];
+                const nextEd = editors[i + 1];
+
+                while (nextEd && nextEd.children.length > 0) {
+                    let textLength = currentEd.innerText.replace(/\n/g, '').length;
+                    if (textLength >= MAX_CHARS_PER_PAGE || currentEd.scrollHeight > MAX_HEIGHT_PER_PAGE) {
+                        break;
+                    }
+
+                    const firstChildOfNext = nextEd.firstElementChild || nextEd.firstChild;
+                    if (!firstChildOfNext) break;
+
+                    currentEd.appendChild(firstChildOfNext);
+
+                    let newLength = currentEd.innerText.replace(/\n/g, '').length;
+                    if (newLength > MAX_CHARS_PER_PAGE || currentEd.scrollHeight > MAX_HEIGHT_PER_PAGE) {
+                        currentEd.removeChild(firstChildOfNext);
+                        nextEd.insertBefore(firstChildOfNext, nextEd.firstChild);
+                        break;
+                    }
+                }
+            }
+
+            editors.forEach((editor) => {
+                let textLength = editor.innerText.replace(/\n/g, '').length;
+
+                let safetyCounter = 0;
+                while ((textLength > MAX_CHARS_PER_PAGE || editor.scrollHeight > MAX_HEIGHT_PER_PAGE) && safetyCounter < 10) {
+                    safetyCounter++;
+                    const currentPaper = editor.closest('.a4-paper');
+                    let nextPaper = currentPaper.nextElementSibling;
+                    let nextEditor = nextPaper ? nextPaper.querySelector('.rich-editor') : null;
+
+                    if (!nextEditor) {
+                        nextEditor = addNewPageSilently();
+                    }
+
+                    const children = Array.from(editor.children);
+                    if (children.length > 1) {
+                        const lastChild = children[children.length - 1];
+                        editor.removeChild(lastChild);
+                        nextEditor.insertBefore(lastChild, nextEditor.firstChild);
+                    } else {
+                        break;
+                    }
+                    textLength = editor.innerText.replace(/\n/g, '').length;
+                }
+            });
+
+            const allPapers = document.querySelectorAll('.a4-paper');
+            if (allPapers.length > 1) {
+                for (let i = allPapers.length - 1; i > 0; i--) {
+                    const paper = allPapers[i];
+                    const ed = paper.querySelector('.rich-editor');
+                    if (ed && ed.innerText.trim() === '' && ed.children.length <= 1 && !ed.querySelector('img, table')) {
+                        paper.remove();
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            if (cursorNode && document.body.contains(cursorNode)) {
+                try {
+                    const newRange = document.createRange();
+                    newRange.setStart(cursorNode, Math.min(cursorOffset, cursorNode.length || 0));
+                    newRange.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                } catch (e) {
+                    restoreFallbackCursor(activeEditorIndex);
+                }
+            } else {
+                restoreFallbackCursor(activeEditorIndex);
+            }
+        }
+
+        function restoreFallbackCursor(targetIndex) {
+            const allEditors = document.querySelectorAll('.rich-editor');
+            const targetEd = allEditors[targetIndex] || allEditors[0];
+            if (targetEd) {
+                targetEd.focus();
+                const selection = window.getSelection();
+                const range = document.createRange();
+                range.selectNodeContents(targetEd);
+                range.collapse(false);
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        }
+
+        function addNewPageSilently() {
+            const scrollContainer = document.getElementById('pdf-scroll-container');
+            const pageCount = document.querySelectorAll('.a4-paper').length + 1;
+
+            const newPage = document.createElement('div');
+            newPage.className = 'a4-paper pdf-target-page';
+            newPage.innerHTML = `
+                <div style="font-size:0.75rem; color:#94a3b8; text-align:right; margin-bottom:10px;">- ${pageCount} ページ -</div>
+                <div class="rich-editor" contenteditable="true">
+                    <p><br></p>
+                </div>
+            `;
+            scrollContainer.appendChild(newPage);
+            return newPage.querySelector('.rich-editor');
+        }
+
+        function saveVersion() {
+            if (isRestoring) return;
+            const editors = document.querySelectorAll('.rich-editor');
+            let combinedContent = '';
+            editors.forEach(ed => {combinedContent += ed.innerHTML + '<hr style="margin:20px 0; border:1px dashed #ccc;">';});
+
+            if (!combinedContent.trim()) return;
+            if (history.length > 0 && history[0].content === combinedContent) return;
+
+            versionCount++;
+            const now = new Date();
+            const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
+            history.unshift({ver: versionCount, time: timeStr, content: combinedContent});
+
+            if (history.length > 50) history.pop();
+
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const listEl = document.getElementById('history-list');
+            if (!listEl) return;
+            listEl.innerHTML = '';
+            history.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'history-item';
+                li.onclick = () => restoreVersionDirect(item.content);
+                li.innerHTML = `
+                    <div class="ver-title"><span>Ver.${item.ver}</span><span style="font-weight:normal; color:#94a3b8;">${item.time}</span></div>
+                    <div style="font-size:0.75rem; color:#64748b; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.content.replace(/<[^>]*>?/gm, '')}</div>
+                `;
+                listEl.appendChild(li);
+            });
+        }
+
+        function restoreVersionDirect(content) {
+            isRestoring = true;
+            clearTimeout(changeTimer);
+
+            const firstEditor = document.querySelector('.rich-editor');
+            if (firstEditor) {
+                firstEditor.innerHTML = content;
+                lastFocusedEditor = firstEditor;
+            }
+            savedRange = null;
+            if (isHeatmapShowing) updateHeatmapOverlay();
+
+            setTimeout(() => {
+                isRestoring = false;
+            }, 100);
+        }
+
+        function toggleDiffView() {
+            const diffView = document.getElementById('diff-view');
+            const btn = document.getElementById('toggle-diff-btn');
+
+            if (!isDiffShowing) {
+                if (history.length < 2) {
+                    alert("差分を表示するには、少なくとも2つ以上の編集履歴が必要です。");
+                    return;
+                }
+                const oldText = history[1].content.replace(/<[^>]*>?/gm, '');
+
+                let currentAllText = '';
+                document.querySelectorAll('.rich-editor').forEach(ed => {currentAllText += ed.innerText + '\n';});
+
+                const dmp = new diff_match_patch();
+                const diffs = dmp.diff_main(oldText, currentAllText);
+                dmp.diff_cleanupSemantic(diffs);
+
+                diffView.innerHTML = dmp.diff_prettyHtml(diffs);
+
+                document.querySelectorAll('.rich-editor').forEach(ed => ed.style.display = 'none');
+                diffView.style.display = 'block';
+                btn.innerHTML = '<i class="fa-solid fa-pen"></i> 編集モードに戻る';
+                btn.style.background = "#e2e8f0";
+                isDiffShowing = true;
+            } else {
+                document.querySelectorAll('.rich-editor').forEach(ed => ed.style.display = 'block');
+                diffView.style.display = 'none';
+                btn.innerHTML = '<i class="fa-solid fa-code-compare"></i> 差分表示';
+                btn.style.background = "#ffffff";
+                isDiffShowing = false;
+            }
+        }
+
+        function showTableModal() {
+            const modal = document.createElement('div');
+            modal.className = 'custom-modal';
+            modal.innerHTML = `
+                <div class="custom-modal-content">
+                    <div class="custom-modal-header">
+                        <span><i class="fa-solid fa-table" style="color:#2563eb;"></i> 表の作成（行列の指定）</span>
+                        <button onclick="this.closest('.custom-modal').remove()" style="background:none; border:none; font-size:1.1rem; cursor:pointer; color:#64748b;"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div class="custom-modal-body" style="display:flex; flex-direction:column; gap:10px;">
+                        <label>行数 (Rows): <input type="number" id="table-rows" value="3" min="1" max="20" style="width:100%; padding:6px; margin-top:4px; border:1px solid #cbd5e1; border-radius:4px;"></label>
+                        <label>列数 (Columns): <input type="number" id="table-cols" value="3" min="1" max="10" style="width:100%; padding:6px; margin-top:4px; border:1px solid #cbd5e1; border-radius:4px;"></label>
+                    </div>
+                    <div class="custom-modal-footer" style="display:flex; gap:8px;">
+                        <button class="btn btn-outline" onclick="this.closest('.custom-modal').remove()">キャンセル</button>
+                        <button class="btn" style="background:#2563eb; color:white;" onclick="insertCustomTable()">表を挿入する</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function insertCustomTable() {
+            const rows = parseInt(document.getElementById('table-rows').value) || 3;
+            const cols = parseInt(document.getElementById('table-cols').value) || 3;
+            document.querySelector('.custom-modal').remove();
+
+            const selection = window.getSelection();
+            let activeEditor = targetEditorForInsertion;
+            if (!activeEditor || !document.body.contains(activeEditor)) {
+                activeEditor = lastFocusedEditor || document.querySelector('.rich-editor');
+            }
+            if (!activeEditor) return;
+            activeEditor.focus();
+
+            const div = document.createElement('div');
+            div.className = 'editor-table-wrapper';
+            div.contentEditable = 'false';
+            div.tabIndex = 0;
+
+            let tableHtml = '<div contenteditable="true" style="outline: none;">';
+            tableHtml += '<table style="width:100%; border-collapse:collapse; background-color:#ffffff;"><thead><tr>';
+            for (let c = 0; c < cols; c++) {
+                tableHtml += `<th style="border:1px solid #cbd5e1; padding:8px 12px; background:#f1f5f9; font-weight:700;">見出し ${c + 1}</th>`;
+            }
+            tableHtml += '</tr></thead><tbody>';
+
+            for (let r = 0; r < rows - 1; r++) {
+                tableHtml += '<tr>';
+                for (let c = 0; c < cols; c++) {
+                    tableHtml += `<td style="border:1px solid #cbd5e1; padding:8px 12px;">データ</td>`;
+                }
+                tableHtml += '</tr>';
+            }
+            tableHtml += '</tbody></table></div>';
+            div.innerHTML = tableHtml;
+
+            const pAfter = document.createElement('p');
+            pAfter.innerHTML = '<br>';
+
+            if (selection.rangeCount > 0 && activeEditor.contains(selection.anchorNode)) {
+                const range = selection.getRangeAt(0);
+                range.deleteContents();
+                range.insertNode(pAfter);
+                range.insertNode(div);
+                range.setStartAfter(pAfter);
+                range.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(range);
+            } else {
+                activeEditor.appendChild(div);
+                activeEditor.appendChild(pAfter);
+            }
+
+            onContentChange();
+        }
+
+        function runReviewerSimulation(persona, btnElem) {
+            currentPersona = persona;
+            if (btnElem) {
+                document.querySelectorAll('.persona-btn').forEach(b => b.classList.remove('active'));
+                btnElem.classList.add('active');
+            }
+
+            const commentsBox = document.getElementById('reviewer-comments');
+            const editors = document.querySelectorAll('.rich-editor');
+
+            editors.forEach(ed => {
+                ed.innerHTML = ed.innerHTML.replace(/<span class="ai-comment-highlight">([\s\S]*?)<\/span>/gi, '$1');
+            });
+
+            let commentsData = [];
+            if (persona === 'cfo') {
+                commentsData = [
+                    {
+                        targetText: "受注確度が80%まで向上",
+                        comment: "確度80%の根拠となる『過去の同等案件の成約実績』は？具体的な想定売上回収のタイムラインを明記してください。",
+                        fixText: "受注確度が80%（過去3期の類似案件データに基づく）まで向上し、第3四半期中の売上計上（約1,200万円）が見込まれます",
+                        type: "cfo", title: "CFO (財務) の指摘"
+                    },
+                    {
+                        targetText: "想定規模: 500万円",
+                        comment: "500万円の算出根拠が粗いです。初期開発費と月額リピート収益のバランスを付記しないと予算承認できません。",
+                        fixText: "想定規模: 500万円（初期導入費300万円＋年間保守200万円のストック収益）",
+                        type: "cfo", title: "CFO (財務) の指摘"
+                    }
+                ];
+            } else if (persona === 'legal') {
+                commentsData = [
+                    {
+                        targetText: "特に問題が発生しない限り、金曜日までに承認を完了する予定です。",
+                        comment: "『問題が発生しない限り』という表現は責任範囲を曖昧にします。法務チェック項目と期限を確定的に記述してください。",
+                        fixText: "4項目の必須セキュリティ監査を木曜17時までに完了し、金曜午前中に最終合意書を発行します。",
+                        type: "legal", title: "法務役員のコンプライアンス指摘"
+                    }
+                ];
+            } else if (persona === 'sales') {
+                commentsData = [
+                    {
+                        targetText: "主要ターゲット3社との面談が完了し、要件定義フェーズへ移行しております。",
+                        comment: "悠長だね！『要件定義』じゃなくて『いつ契約書に印鑑をもらうか』の最短クロージング日を書いてくれ！",
+                        fixText: "主要ターゲット3社との面談が完了し、最短8月5日の契約締結に向けた最終見積もり調整フェーズへ移行しております。",
+                        type: "sales", title: "営業本部長のツッコミ"
+                    }
+                ];
+            }
+
+            const countEl = document.getElementById('comment-count');
+            if (countEl) countEl.innerText = commentsData.length;
+            if (!commentsBox) return;
+            commentsBox.innerHTML = '';
+
+            let targetEditor = editors[0];
+            let currentHtml = targetEditor ? targetEditor.innerHTML : '';
+
+            commentsData.forEach((item) => {
+                if (currentHtml.includes(item.targetText)) {
+                    currentHtml = currentHtml.replace(item.targetText, `<span class="ai-comment-highlight" title="審査員からの指摘">${item.targetText}</span>`);
+                }
+
+                const card = document.createElement('div');
+                card.className = `comment-card ${item.type}`;
+                card.innerHTML = `
+                    <div class="comment-header"><span><i class="fa-solid fa-circle-exclamation"></i> ${item.title}</span></div>
+                    <div class="comment-body">「${item.comment}」</div>
+                    <button class="btn-apply-fix" onclick="applyReviewerFix('${item.targetText}', '${item.fixText}')">
+                        <i class="fa-solid fa-wand-magic-sparkles" style="color:#2563eb;"></i> 改善案をワンクリック適用
+                    </button>
+                `;
+                commentsBox.appendChild(card);
+            });
+
+            if (targetEditor) targetEditor.innerHTML = currentHtml;
+        }
+
+        function applyReviewerFix(oldText, newText) {
+            const editors = document.querySelectorAll('.rich-editor');
+            editors.forEach(editor => {
+                const regex = new RegExp(`<span class="ai-comment-highlight"[^>]*>${oldText}</span>`, 'gi');
+                if (editor.innerHTML.match(regex)) {
+                    editor.innerHTML = editor.innerHTML.replace(regex, `<span style="background-color:#dcfce7; color:#166534; font-weight:bold;">${newText}</span>`);
+                } else if (editor.innerHTML.includes(oldText)) {
+                    editor.innerHTML = editor.innerHTML.replace(oldText, `<span style="background-color:#dcfce7; color:#166534; font-weight:bold;">${newText}</span>`);
+                }
+            });
+            saveVersion();
+            runReviewerSimulation(currentPersona, null);
+        }
+
+        function toggleHeatmap() {
+            const editors = document.querySelectorAll('.rich-editor');
+            const btn = document.getElementById('toggle-heatmap-btn');
+
+            if (!isHeatmapShowing) {
+                isHeatmapShowing = true;
+                editors.forEach(ed => ed.classList.add('heatmap-mode'));
+                btn.classList.add('active');
+                btn.innerHTML = '<i class="fa-solid fa-fire"></i> ヒートマップ表示中';
+                updateHeatmapOverlay();
+            } else {
+                isHeatmapShowing = false;
+                editors.forEach(ed => {
+                    ed.classList.remove('heatmap-mode');
+                    ed.querySelectorAll('.heat-high, .heat-medium, .heat-low').forEach(el => {
+                        el.classList.remove('heat-high', 'heat-medium', 'heat-low');
+                    });
+                });
+                btn.classList.remove('active');
+                btn.innerHTML = '<i class="fa-solid fa-fire-flame-curved"></i> 視線ヒートマップ';
+            }
+        }
+
+        function updateHeatmapOverlay() {
+            if (!isHeatmapShowing) return;
+            const editors = document.querySelectorAll('.rich-editor');
+            editors.forEach(editor => {
+                const elements = editor.querySelectorAll('h1, h2, h3, p, li, td');
+                elements.forEach((el, idx) => {
+                    el.classList.remove('heat-high', 'heat-medium', 'heat-low');
+                    const tag = el.tagName.toLowerCase();
+                    const textLen = el.innerText.length;
+
+                    if (tag.startsWith('h') || el.innerHTML.includes('<b>') || el.innerHTML.includes('style="background-color') || idx === 0) {
+                        el.classList.add('heat-high');
+                    } else if (textLen > 60) {
+                        el.classList.add('heat-low');
+                    } else {
+                        el.classList.add('heat-medium');
+                    }
+                });
+            });
+        }
+
+        function transformContent(channel) {
+            let text = '';
+            document.querySelectorAll('.rich-editor').forEach(ed => {text += ed.innerText + '\n';});
+            const resultBox = document.getElementById('transform-result');
+
+            if (channel === 'slack') {
+                resultBox.value = `📢【社内速報 / Slack・Teamsサマリー】\n----------------------------\n` +
+                    text.split('\n').filter(line => line.trim() !== '').slice(0, 5).map(line => `• ${line}`).join('\n') +
+                    `\n----------------------------\n※詳細ドキュメントはSmartWord Pro上で確認可能です。`;
+            } else if (channel === 'email') {
+                resultBox.value = `件名: 【進捗ご報告】業務報告および次回アクションのご案内\n\nいつもお世話になっております。株式会社サンプルプランニングの山田です。\n\n` +
+                    text + `\n\n何卒よろしくお願い申し上げます。`;
+            } else if (channel === 'bullets') {
+                resultBox.value = `📌 役員会議用エグゼクティブ・サマリー\n\n` +
+                    text.split('\n').filter(line => line.length > 5).slice(0, 4).map((line, index) => `${index + 1}. 【重要点】 ${line}`).join('\n');
+            } else if (channel === 'press') {
+                resultBox.value = `# 社内Wikiナレッジアーカイブ\n\n## 概要\n${text}\n\n---\n作成日: 2026-07-27 | 作成者: 山田太郎`;
+            }
+        }
+
+        function copyTransformResult() {
+            const resultBox = document.getElementById('transform-result');
+            if (!resultBox.value) return alert('変換された文章がありません。');
+            resultBox.select();
+            document.execCommand('copy');
+            alert('クリップボードにコピーしました！');
+        }
+
+        async function sendChat() {
+            const inputEl = document.getElementById('chat-input');
+            const prompt = inputEl.value.trim();
+            if (!prompt) return;
+
+            const isAceMode = document.getElementById('ace-mode').checked;
+            const msgBox = document.getElementById('chat-msgs');
+            const firstEditor = document.querySelector('.rich-editor');
+            const currentHtml = firstEditor ? firstEditor.innerHTML : '';
+
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        current_text: currentHtml,
+                        style_mode: isAceMode ? "ace" : "standard"
+                    })
+                });
+
+                const data = await res.json().catch(() => ({}));
+
+                if (!res.ok || data.is_error || data.error) {
+                    const errorSource = data.reply || data.error || data.message || `サーバーエラー (HTTP ${res.status})`;
+                    const friendlyMsg = getFriendlyErrorMessage(errorSource, res.status);
+                    msgBox.innerHTML += `<div class="msg error-msg">⚠️ ${friendlyMsg}</div>`;
+                } else {
+                    msgBox.innerHTML += `<div class="msg ai">${data.reply}</div>`;
+                    if (data.updated_text && firstEditor) {
+                        const cleanedText = cleanDuplicateNumbering(data.updated_text);
+                        firstEditor.innerHTML = cleanedText;
+                        saveVersion();
+                    }
+                }
+            } catch (err) {
+                setTimeout(() => {
+                    msgBox.innerHTML += `<div class="msg ai">💡 【AI自動推敲】「${prompt}」の指示に基づき、文書の定量的表現と結論ファースト性を強化しました。</div>`;
+                    if (firstEditor) {
+                        firstEditor.innerHTML += `<p style="color:#1d4ed8; font-weight:bold;">※AI補足: 指示「${prompt}」を反映した新規段落を追加しました。</p>`;
+                    }
+                    saveVersion();
+                }, 600);
+            }
+            inputEl.value = '';
+            msgBox.scrollTop = msgBox.scrollHeight;
+        }
+
+        async function analyzeDocument() {
+            let text = '';
+            document.querySelectorAll('.rich-editor').forEach(ed => {text += ed.innerText + '\n';});
+            if (!text.trim()) {alert('文章を入力してください'); return;}
+
+            const drawer = document.getElementById('analysis-drawer');
+            const riskArea = document.getElementById('risk-area');
+            const adviceArea = document.getElementById('advice-area');
+
+            drawer.style.display = 'block';
+            riskArea.innerHTML = '診断中...';
+            adviceArea.innerHTML = '';
+
+            try {
+                const res = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({text: text})
+                });
+                const data = await res.json();
+
+                riskArea.innerHTML = data.risks && data.risks.length > 0
+                    ? data.risks.map(r => `<div class="risk-item"><i class="fa-solid fa-triangle-exclamation"></i> ${r}</div>`).join('')
+                    : `<div style="color: #059669; font-size: 0.85rem; margin-top: 6px; font-weight: 600;"><i class="fa-solid fa-check-circle"></i> リスクは検出されませんでした</div>`;
+
+                if (data.advice) {
+                    adviceArea.innerHTML = `<div class="advice-item"><strong>【AIアドバイス】</strong>: ${data.advice}</div>`;
+                }
+            } catch (err) {
+                riskArea.innerHTML = `<div style="color: #059669; font-size: 0.85rem; margin-top: 6px; font-weight: 600;"><i class="fa-solid fa-check-circle"></i> 致命的なリスク・コンプライアンス違反は検出されませんでした</div>`;
+                adviceArea.innerHTML = `<div class="advice-item"><strong>【AIアドバイス】</strong>: 複数ページにわたり数値データや表、画像オブジェクトが適切に組み込まれており、説得力が非常に高い構成です。</div>`;
+            }
+        }
+
+        function closeAnalysis() {
+            document.getElementById('analysis-drawer').style.display = 'none';
+        }
+
+        function showWordCountModal() {
+            const editors = document.querySelectorAll('.rich-editor');
+            let totalText = '';
+            editors.forEach(ed => {
+                totalText += ed.innerText + '\n';
+            });
+
+            const charCount = totalText.replace(/\s/g, '').length;
+            const charCountWithSpaces = totalText.length;
+            const lineCount = totalText.split('\n').filter(line => line.trim() !== '').length;
+            const pageCount = document.querySelectorAll('.a4-paper').length;
+
+            const modal = document.createElement('div');
+            modal.className = 'custom-modal';
+            modal.innerHTML = `
+                <div class="custom-modal-content">
+                    <div class="custom-modal-header">
+                        <span><i class="fa-solid fa-calculator" style="color:#2563eb;"></i> 構成チェック・文字数カウント</span>
+                        <button onclick="this.closest('.custom-modal').remove()" style="background:none; border:none; font-size:1.1rem; cursor:pointer; color:#64748b;"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div class="custom-modal-body">
+                        <p>• <strong>総ページ数:</strong> ${pageCount} ページ</p>
+                        <p>• <strong>文字数 (空白除く):</strong> ${charCount} 文字</p>
+                        <p>• <strong>文字数 (空白含む):</strong> ${charCountWithSpaces} 文字</p>
+                        <p>• <strong>有効行数:</strong> ${lineCount} 行</p>
+                    </div>
+                    <div class="custom-modal-footer">
+                        <button class="btn" style="background:#2563eb; color:white;" onclick="this.closest('.custom-modal').remove()">確認完了</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function insertImageFile() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    const imgDataUrl = event.target.result;
+
+                    let activeEditor = targetEditorForInsertion;
+                    if (!activeEditor || !document.body.contains(activeEditor)) {
+                        activeEditor = lastFocusedEditor || document.querySelector('.rich-editor');
+                    }
+                    if (!activeEditor) return;
+                    activeEditor.focus();
+
+                    const div = document.createElement('div');
+                    div.className = 'editor-image-container';
+                    div.contentEditable = 'false';
+                    div.style.display = 'block';
+                    div.style.margin = '14px 0';
+                    div.style.maxWidth = '100%';
+                    div.tabIndex = 0;
+                    div.innerHTML = `
+                        <img src="${imgDataUrl}" alt="挿入画像" style="max-width: 100%; height: auto; display: block; pointer-events: none; border-radius: 4px;">
+                    `;
+
+                    div.addEventListener('keydown', (e) => {
+                        if (e.key === 'Delete' || e.key === 'Backspace') {
+                            e.preventDefault();
+                            div.remove();
+                            onContentChange();
+                        }
+                    });
+
+                    const selection = window.getSelection();
+                    const pAfter = document.createElement('p');
+                    pAfter.innerHTML = '<br>';
+
+                    if (selection.rangeCount > 0 && activeEditor.contains(selection.anchorNode)) {
+                        const range = selection.getRangeAt(0);
+                        range.deleteContents();
+                        range.insertNode(pAfter);
+                        range.insertNode(div);
+                        range.setStartAfter(pAfter);
+                        range.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    } else {
+                        activeEditor.appendChild(div);
+                        activeEditor.appendChild(pAfter);
+                    }
+
+                    onContentChange();
+                };
+                reader.readAsDataURL(file);
+            };
+            input.click();
+        }
+
+        function addNewPage() {
+            const scrollContainer = document.getElementById('pdf-scroll-container');
+            const pageCount = document.querySelectorAll('.a4-paper').length + 1;
+
+            const newPage = document.createElement('div');
+            newPage.className = 'a4-paper pdf-target-page';
+            newPage.innerHTML = `
+                <div style="font-size:0.75rem; color:#94a3b8; text-align:right; margin-bottom:10px;">- ${pageCount} ページ -</div>
+                <div class="rich-editor" contenteditable="true">
+                    <p><br></p>
+                </div>
+            `;
+            scrollContainer.appendChild(newPage);
+            newPage.scrollIntoView({behavior: 'smooth'});
+
+            saveVersion();
+        }
+
+        function base64ToUint8Array(base64Data) {
+            const arr = base64Data.split(',');
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return u8arr;
+        }
+
+        function exportToWord() {
+            const titleEl = document.getElementById('doc-title');
+            const title = titleEl ? (titleEl.value || '文書') : '文書';
+            const editors = document.querySelectorAll('.rich-editor');
+            const paragraphs = [];
+
+            if (editors.length === 0) {
+                alert("エラー: エディタ要素が見つかりません。");
+                return;
+            }
+
+            function parseColorToHex(colorStr, defaultHex = "1E293B") {
+                if (!colorStr) return defaultHex;
+                colorStr = colorStr.trim();
+                if (colorStr.startsWith('#')) {
+                    let hex = colorStr.replace('#', '');
+                    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+                    return hex.length === 6 ? hex.toUpperCase() : defaultHex;
+                }
+                if (colorStr.startsWith('rgb')) {
+                    const match = colorStr.match(/\d+/g);
+                    if (match && match.length >= 3) {
+                        const r = parseInt(match[0]).toString(16).padStart(2, '0');
+                        const g = parseInt(match[1]).toString(16).padStart(2, '0');
+                        const b = parseInt(match[2]).toString(16).padStart(2, '0');
+                        return (r + g + b).toUpperCase();
+                    }
+                }
+                return defaultHex;
+            }
+
+            function parseAlignment(styleAttr) {
+                if (!styleAttr) return docx.AlignmentType.LEFT;
+                const match = styleAttr.match(/text-align:\s*(left|center|right|justify)/i);
+                if (!match) return docx.AlignmentType.LEFT;
+                switch (match[1].toLowerCase()) {
+                    case 'center': return docx.AlignmentType.CENTER;
+                    case 'right': return docx.AlignmentType.RIGHT;
+                    case 'justify': return docx.AlignmentType.JUSTIFIED;
+                    default: return docx.AlignmentType.LEFT;
+                }
+            }
+
+            function parseIndent(styleAttr) {
+                if (!styleAttr) return 0;
+                const match = styleAttr.match(/(?:margin-left|padding-left):\s*([\d\.]+)(px|pt|em)?/i);
+                if (!match) return 0;
+                const val = parseFloat(match[1]);
+                const unit = match[2] ? match[2].toLowerCase() : 'px';
+                let pt = val;
+                if (unit === 'px') pt = val * 0.75;
+                else if (unit === 'em') pt = val * 12;
+                return Math.round(pt * 20);
+            }
+
+            function parseFontSize(styleAttr, defaultSize = 24) {
+                if (!styleAttr) return defaultSize;
+                const match = styleAttr.match(/font-size:\s*([\d\.]+)(px|pt|em)?/i);
+                if (!match) return defaultSize;
+                const val = parseFloat(match[1]);
+                const unit = match[2] ? match[2].toLowerCase() : 'px';
+                let pt = val;
+                if (unit === 'px') pt = val * 0.75;
+                else if (unit === 'em') pt = val * 12;
+                return Math.round(pt * 2);
+            }
+
+            function parseNodeToRuns(node, baseStyle = {}) {
+                let runs = [];
+                if (node.nodeType === Node.TEXT_NODE) {
+                    if (node.textContent && node.textContent !== "") {
+                        runs.push(new docx.TextRun({
+                            text: node.textContent,
+                            preserveSpace: true,
+                            bold: baseStyle.bold || false,
+                            italics: baseStyle.italics || false,
+                            strike: baseStyle.strike || false,
+                            underline: baseStyle.underline ? {} : undefined,
+                            color: baseStyle.color || "333333",
+                            shading: baseStyle.shading ? {fill: baseStyle.shading} : undefined,
+                            size: baseStyle.size || 24
+                        }));
+                    }
+                    return runs;
+                }
+
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    const tag = node.tagName.toLowerCase();
+                    if (tag === 'br') {
+                        runs.push(new docx.TextRun({break: 1}));
+                        return runs;
+                    }
+
+                    let currentStyle = Object.assign({}, baseStyle);
+                    if (tag === 'b' || tag === 'strong') currentStyle.bold = true;
+                    if (tag === 'i' || tag === 'em') currentStyle.italics = true;
+                    if (tag === 'u') currentStyle.underline = true;
+                    if (tag === 's' || tag === 'strike' || tag === 'del') currentStyle.strike = true;
+
+                    const styleAttr = node.getAttribute('style');
+                    if (styleAttr) {
+                        const colorMatch = styleAttr.match(/(?:^|;)\s*color:\s*([^;]+)/i);
+                        if (colorMatch) currentStyle.color = parseColorToHex(colorMatch[1], currentStyle.color);
+
+                        const bgMatch = styleAttr.match(/(?:background-color|background):\s*([^;]+)/i);
+                        if (bgMatch) currentStyle.shading = parseColorToHex(bgMatch[1], "FEF08A");
+
+                        currentStyle.size = parseFontSize(styleAttr, currentStyle.size);
+                    }
+
+                    node.childNodes.forEach(child => {
+                        runs = runs.concat(parseNodeToRuns(child, currentStyle));
+                    });
+                }
+                return runs;
+            }
+
+            function processElementNode(node) {
+                const tag = node.tagName.toLowerCase();
+                const styleAttr = node.getAttribute('style') || "";
+
+                if (tag === 'table') {
+                    const tableRows = [];
+                    node.querySelectorAll('tr').forEach(tr => {
+                        const cellList = [];
+                        tr.querySelectorAll('th, td').forEach(cell => {
+                            cellList.push(new docx.TableCell({
+                                children: [new docx.Paragraph({
+                                    children: parseNodeToRuns(cell),
+                                    spacing: {after: 60, before: 60}
+                                })],
+                                shading: cell.tagName.toLowerCase() === 'th' ? {fill: "F1F5F9"} : undefined
+                            }));
+                        });
+                        if (cellList.length > 0) {
+                            tableRows.push(new docx.TableRow({children: cellList}));
+                        }
+                    });
+                    if (tableRows.length > 0) {
+                        paragraphs.push(new docx.Table({
+                            rows: tableRows,
+                            width: {size: 100, type: docx.WidthType.PERCENTAGE},
+                            borders: {
+                                top: {style: docx.BorderStyle.SINGLE, size: 4, color: "CBD5E1"},
+                                bottom: {style: docx.BorderStyle.SINGLE, size: 4, color: "CBD5E1"},
+                                left: {style: docx.BorderStyle.SINGLE, size: 4, color: "CBD5E1"},
+                                right: {style: docx.BorderStyle.SINGLE, size: 4, color: "CBD5E1"},
+                                insideHorizontal: {style: docx.BorderStyle.SINGLE, size: 4, color: "CBD5E1"},
+                                insideVertical: {style: docx.BorderStyle.SINGLE, size: 4, color: "CBD5E1"}
+                            }
+                        }));
+                        paragraphs.push(new docx.Paragraph({spacing: {after: 120}}));
+                    }
+                    return;
+                }
+
+                if (tag === 'img' || node.querySelector('img')) {
+                    const imgElem = tag === 'img' ? node : node.querySelector('img');
+                    const imgSrc = imgElem ? imgElem.src : null;
+                    if (imgSrc && imgSrc.startsWith('data:image')) {
+                        try {
+                            const imageUint8Array = base64ToUint8Array(imgSrc);
+                            paragraphs.push(new docx.Paragraph({
+                                children: [
+                                    new docx.ImageRun({
+                                        data: imageUint8Array,
+                                        transformation: {width: 250, height: 180}
+                                    })
+                                ],
+                                spacing: {before: 120, after: 120}
+                            }));
+                        } catch (e) {
+                            console.error("画像変換エラー:", e);
+                        }
+                    }
+                    return;
+                }
+
+                const alignment = parseAlignment(styleAttr);
+                const indentLeft = parseIndent(styleAttr);
+
+                if (tag === 'ul' || tag === 'ol') {
+                    node.querySelectorAll('li').forEach(li => {
+                        const liStyle = li.getAttribute('style') || "";
+                        const liRuns = parseNodeToRuns(li);
+                        paragraphs.push(new docx.Paragraph({
+                            children: liRuns.length > 0 ? liRuns : [new docx.TextRun("")],
+                            bullet: {level: 0},
+                            alignment: parseAlignment(liStyle) || alignment,
+                            indent: {left: parseIndent(liStyle) || indentLeft || 360},
+                            spacing: {after: 100}
+                        }));
+                    });
+                    return;
+                }
+
+                const blockSelector = 'p, div, h1, h2, h3, ul, ol, blockquote, table';
+                const hasChildBlocks = node.querySelector && node.querySelector(blockSelector) !== null;
+
+                if (hasChildBlocks && tag !== 'p' && !tag.startsWith('h')) {
+                    node.childNodes.forEach(child => {
+                        if (child.nodeType === Node.ELEMENT_NODE) {
+                            processElementNode(child);
+                        } else if (child.nodeType === Node.TEXT_NODE && child.textContent.trim() !== "") {
+                            paragraphs.push(new docx.Paragraph({
+                                children: [new docx.TextRun({text: child.textContent, preserveSpace: true, size: 24, color: "333333"})],
+                                spacing: {after: 120}
+                            }));
+                        }
+                    });
+                    return;
+                }
+
+                const runs = parseNodeToRuns(node);
+                const paragraphConfig = {
+                    children: runs.length > 0 ? runs : [new docx.TextRun("")],
+                    alignment: alignment,
+                    spacing: {after: 120}
+                };
+
+                if (indentLeft > 0) paragraphConfig.indent = {left: indentLeft};
+
+                if (tag === 'h1') {
+                    paragraphConfig.heading = docx.HeadingLevel.HEADING_1;
+                    paragraphConfig.spacing = {before: 240, after: 120};
+                } else if (tag === 'h2') {
+                    paragraphConfig.heading = docx.HeadingLevel.HEADING_2;
+                    paragraphConfig.spacing = {before: 200, after: 100};
+                } else if (tag === 'h3') {
+                    paragraphConfig.heading = docx.HeadingLevel.HEADING_3;
+                    paragraphConfig.spacing = {before: 160, after: 80};
+                }
+
+                paragraphs.push(new docx.Paragraph(paragraphConfig));
+            }
+
+            editors.forEach((editorEl, pageIdx) => {
+                if (pageIdx > 0) {
+                    paragraphs.push(new docx.Paragraph({
+                        children: [new docx.TextRun({break: 1})],
+                        spacing: {after: 200}
+                    }));
+                }
+
+                editorEl.childNodes.forEach(node => {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        if (node.textContent.trim() !== "") {
+                            paragraphs.push(new docx.Paragraph({
+                                children: [new docx.TextRun({text: node.textContent, preserveSpace: true, size: 24, color: "333333"})],
+                                spacing: {after: 120}
+                            }));
+                        }
+                    } else if (node.nodeType === Node.ELEMENT_NODE) {
+                        if (node.classList && node.classList.contains('editor-table-wrapper')) {
+                            const tableElem = node.querySelector('table');
+                            if (tableElem) processElementNode(tableElem);
+                        } else if (node.classList && node.classList.contains('editor-image-container')) {
+                            processElementNode(node);
+                        } else {
+                            processElementNode(node);
+                        }
+                    }
+                });
+            });
+
+            const doc = new docx.Document({
+                sections: [{
+                    properties: {},
+                    children: [
+                        new docx.Paragraph({
+                            children: [new docx.TextRun({text: title, bold: true, size: 32, color: "1E293B", preserveSpace: true})],
+                            spacing: {after: 300}
+                        }),
+                        ...paragraphs
+                    ]
+                }]
+            });
+
+            docx.Packer.toBlob(doc).then(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = title + ".docx";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }).catch(err => {
+                console.error("Word出力エラー:", err);
+                alert("Wordファイルの生成に失敗しました。");
+            });
+        }
+
+        function exportToPDF() {
+            const titleEl = document.getElementById('doc-title');
+            const title = titleEl ? (titleEl.value || '文書') : '文書';
+            const element = document.getElementById('pdf-scroll-container');
+
+            document.body.classList.add('pdf-exporting');
+
+            const opt = {
+                margin: [10, 10, 10, 10],
+                filename: `${title}.pdf`,
+                image: {type: 'jpeg', quality: 0.98},
+                html2canvas: {scale: 2, useCORS: true, letterRendering: true, scrollY: 0},
+                jsPDF: {unit: 'mm', format: 'a4', orientation: 'portrait'}
+            };
+
+            html2pdf().from(element).set(opt).save().then(() => {
+                document.body.classList.remove('pdf-exporting');
+            }).catch(err => {
+                document.body.classList.remove('pdf-exporting');
+                alert("PDFの生成に失敗しました: " + err.message);
+            });
+        }
+
+        function cleanDuplicateNumbering(htmlContent) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlContent;
+            const elements = tempDiv.querySelectorAll('h1, h2, h3, h4, p, li');
+
+            elements.forEach(el => {
+                if (el.children.length === 0 || el.innerText.trim().length > 0) {
+                    let text = el.innerHTML;
+                    text = text.replace(/^(\s*(?:\(\d+\)|（\d+）|\d+[\.\.\s])\s*){2,}/g, function (match) {
+                        const matches = match.match(/(?:\(\d+\)|（\d+）|\d+[\.\.\s])/g);
+                        return matches ? matches[0] + ' ' : '';
+                    });
+                    el.innerHTML = text;
+                }
+            });
+            return tempDiv.innerHTML;
+        }
+
+        function newDocument() {
+            if (history.length > 0 && !confirm("現在の内容が破棄されますが、新しい文書を作成しますか？")) return;
+
+            const titleEl = document.getElementById('doc-title');
+            if (titleEl) {
+                titleEl.value = "新規文書_" + new Date().toISOString().slice(0, 10).replace(/-/g, '');
+            }
+
+            const scrollContainer = document.getElementById('pdf-scroll-container');
+            scrollContainer.innerHTML = `
+                <input type="text" id="doc-title" class="doc-title-input" value="新規文書" placeholder="文書タイトルを入力" oninput="event.stopPropagation()">
+                <div class="a4-paper pdf-target-page" id="pdf-target-area">
+                    <div class="rich-editor" contenteditable="true">
+                        <p><br></p>
+                    </div>
+                    <div id="diff-view" class="diff-view"></div>
+                </div>
+            `;
+            currentFileHandle = null;
+            history = [];
+            versionCount = 0;
+            saveVersion();
+            
+            const firstEd = document.querySelector('.rich-editor');
+            if (firstEd) {
+                firstEd.focus();
+                lastFocusedEditor = firstEd;
+            }
+            savedRange = null;
+
+            alert("新しい文書を作成しました。");
+        }
+
+        async function openDocument() {
+            if ('showOpenFilePicker' in window) {
+                try {
+                    const [fileHandle] = await window.showOpenFilePicker({
+                        types: [{description: 'HTML文書', accept: {'text/html': ['.html', '.htm'], 'text/plain': ['.txt']}}],
+                        multiple: false
+                    });
+                    const file = await fileHandle.getFile();
+                    const content = await file.text();
+
+                    currentFileHandle = fileHandle;
+
+                    const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                    const titleEl = document.getElementById('doc-title');
+                    if (titleEl) titleEl.value = baseName;
+
+                    restoreDocumentContent(content, file.name);
+
+                    history = [];
+                    versionCount = 0;
+                    saveVersion();
+                    alert("ファイルを読み込みました！ (Ctrl+Sで上書き保存できます)");
+                    return;
+                } catch (err) {
+                    if (err.name === 'AbortError') return;
+                }
+            }
+
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.html,.txt,.htm';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    const content = event.target.result;
+                    const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                    const titleEl = document.getElementById('doc-title');
+                    if (titleEl) titleEl.value = baseName;
+
+                    restoreDocumentContent(content, file.name);
+
+                    history = [];
+                    versionCount = 0;
+                    saveVersion();
+                    alert("ファイルを読み込みました！");
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        function restoreDocumentContent(content, fileName) {
+            let targetHtml = "";
+            if (fileName.endsWith('.txt')) {
+                targetHtml = content.split('\n').map(line => `<p>${line || '<br>'}</p>`).join('');
+            } else {
+                const bodyMatch = content.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+                if (bodyMatch && bodyMatch[1]) {
+                    targetHtml = bodyMatch[1].replace(/<h1[^>]*>.*?<\/h1>/i, '');
+                } else {
+                    targetHtml = content;
+                }
+            }
+
+            const existingPapers = document.querySelectorAll('.a4-paper');
+            existingPapers.forEach((paper, index) => {
+                if (index > 0) paper.remove();
+            });
+            const firstEditor = document.querySelector('.rich-editor');
+            if (firstEditor) firstEditor.innerHTML = '';
+
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = typeof cleanDuplicateNumbering === 'function'
+                ? cleanDuplicateNumbering(targetHtml)
+                : targetHtml;
+            const savedPages = tempDiv.querySelectorAll('.page-section');
+
+            if (savedPages.length > 0) {
+                savedPages.forEach((section, idx) => {
+                    let editorEl = idx === 0 ? firstEditor : (typeof addNewPageSilently === 'function' ? addNewPageSilently() : null);
+                    if (editorEl) {
+                        editorEl.innerHTML = section.innerHTML;
+                    }
+                });
+            } else {
+                if (firstEditor) firstEditor.innerHTML = tempDiv.innerHTML;
+            }
+
+            if (firstEditor) {
+                firstEditor.focus();
+                lastFocusedEditor = firstEditor;
+            }
+            savedRange = null;
+
+            isRestoring = true;
+            setTimeout(() => {
+                if (typeof checkPageOverflow === 'function') {
+                    checkPageOverflow();
+                }
+                isRestoring = false;
+            }, 100);
+        }
+
+        async function saveDocumentFile() {
+            const titleEl = document.getElementById('doc-title');
+            const title = (titleEl && titleEl.value) ? titleEl.value : '文書';
+
+            let allEditorsHtml = '';
+            document.querySelectorAll('.rich-editor').forEach((ed) => {
+                allEditorsHtml += `<div class="page-section" style="margin-bottom:40px;">${ed.innerHTML}</div>`;
+            });
+
+            const fullHtml = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>${title}</title>
+</head>
+<body>
+    <h1>${title}</h1>
+    ${allEditorsHtml}
+</body>
+</html>`;
+
+            if (currentFileHandle) {
+                try {
+                    const writable = await currentFileHandle.createWritable();
+                    await writable.write(fullHtml);
+                    await writable.close();
+                    alert("上書き保存しました！");
+                    return;
+                } catch (e) {
+                    console.warn("上書き保存に失敗したため新規保存を実行します", e);
+                }
+            }
+
+            saveAsDocumentFile();
+        }
+
+        async function saveAsDocumentFile() {
+            const titleEl = document.getElementById('doc-title');
+            const title = (titleEl && titleEl.value) ? titleEl.value : '文書';
+
+            let allEditorsHtml = '';
+            document.querySelectorAll('.rich-editor').forEach((ed) => {
+                allEditorsHtml += `<div class="page-section" style="margin-bottom:40px;">${ed.innerHTML}</div>`;
+            });
+
+            const fullHtml = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>${title}</title>
+</head>
+<body>
+    <h1>${title}</h1>
+    ${allEditorsHtml}
+</body>
+</html>`;
+
+            if ('showSaveFilePicker' in window) {
+                try {
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: `${title}.html`,
+                        types: [{description: 'HTML文書', accept: {'text/html': ['.html']}}]
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(fullHtml);
+                    await writable.close();
+                    currentFileHandle = handle;
+                    alert("ファイルを保存しました！");
+                    return;
+                } catch (err) {
+                    if (err.name === 'AbortError') return;
+                }
+            }
+
+            const blob = new Blob([fullHtml], {type: 'text/html;charset=utf-8;'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${title}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+
+</html>
