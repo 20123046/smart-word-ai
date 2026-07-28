@@ -17,10 +17,10 @@ init_error = ""
 try:
     # 引数なしで初期化（環境変数 GEMINI_API_KEY を参照）
     client = genai.Client()
-    print("✅ Clientの初期化に成功しました！")
+    print("✅ Clientの初期化に成功しました！", flush=True)
 except Exception as e:
     init_error = str(e)
-    print(f"⚠️ 初期化エラー: {e}")
+    print(f"⚠️ 初期化エラー: {e}", flush=True)
 
 
 class ChatRequest(BaseModel):
@@ -64,15 +64,17 @@ def chat_endpoint(req: ChatRequest):
 ユーザーの指示:
 {req.prompt}
 """
-            # サポート対象かつ枠があるモデルを指定
+            # 【変更点1】実在するモデル名 "gemini-2.0-flash" に修正
             response = client.models.generate_content(
-                model="gemini-2.5-flash",#gemini-2.0-flash-lite
+                model="gemini-2.0-flash",
                 contents=sys_prompt,
             )
             updated_text = response.text.strip()
             reply = f"「{req.prompt}」の指示（スタイル: {req.style_mode}）を反映して最適化しました。"
             return {"reply": reply, "updated_text": updated_text, "is_error": False}
         except Exception as e:
+            # 【付け足し箇所1】エラーが発生した場合、Renderのログに分かりやすく表示させる
+            print(f"🚨【/api/chat エラー】: {str(e)}", flush=True)
             return {
                 "reply": f"⚠️ Gemini API呼び出しエラー: {str(e)}",
                 "updated_text": req.current_text,
@@ -106,12 +108,15 @@ def analyze_endpoint(req: AnalyzeRequest):
     if client:
         try:
             prompt = f"以下のビジネス文書の【改善すべき点】や【誤字脱字】を2項目で簡潔に指摘してください:\n{text}"
+            # 【変更点2】実在するモデル名 "gemini-2.0-flash" に修正
             res = client.models.generate_content(
-                model="gemini-2.5-flash",#gemini-2.0-flash-lite #gemini-3.5-flash-lite
+                model="gemini-2.0-flash",
                 contents=prompt,
             )
             ai_advice = res.text.strip()
         except Exception as e:
+            # 【付け足し箇所2】エラーが発生した場合、Renderのログに表示させる
+            print(f"🚨【/api/analyze エラー】: {str(e)}", flush=True)
             ai_advice = f"（AI分析エラー: {str(e)}）"
     else:
         ai_advice = "文末の表現が統一されており、論理展開も良好です（ダミー分析）。"
