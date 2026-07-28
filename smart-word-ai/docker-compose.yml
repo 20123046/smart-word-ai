@@ -1,9 +1,0 @@
-version: '3.8'
-
-services:
-  smart-word-ai:
-    build: .
-    container_name: smart_word_ai_app
-    ports:
-      - "8000:8000"
-    restart: always
